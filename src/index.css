@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --color-plum-950: #23093A;
+  --color-plum-900: #3B0764;
+  --color-plum-800: #4C1D95;
+  --color-plum-700: #5B21B6;
+  --color-plum-100: #F3ECFA;
+  --color-plum-50: #FAF8FC;
+  --color-gold-600: #A87E15;
+  --color-gold-500: #C89B2B;
+  --color-gold-400: #DFB54B;
+  --color-gold-100: #FBF4DE;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background-color: #FAF8FC;
+    color: #1F1629;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, .font-display {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  button:not(:disabled),
+  a[href],
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}

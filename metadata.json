@@ -1,0 +1,6 @@
+{
+  "name": "Salonéo",
+  "description": "Gestion simple de salon de coiffure et beauté au Congo-Brazzaville : rendez-vous, clients, prestations et recettes en FCFA.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,199 @@
+{
+  "entities": {
+    "DayHours": {
+      "title": "DayHours",
+      "description": "Horaires d'ouverture pour un jour de la semaine",
+      "type": "object",
+      "properties": {
+        "open": { "type": "boolean", "description": "Le salon est-il ouvert ce jour ?" },
+        "start": { "type": "string", "maxLength": 5, "pattern": "^\\d{2}:\\d{2}$", "description": "Heure d'ouverture HH:MM" },
+        "end": { "type": "string", "maxLength": 5, "pattern": "^\\d{2}:\\d{2}$", "description": "Heure de fermeture HH:MM" }
+      },
+      "required": ["open", "start", "end"]
+    },
+    "OpeningHoursMap": {
+      "title": "OpeningHoursMap",
+      "description": "Horaires hebdomadaires du lundi au dimanche",
+      "type": "object",
+      "properties": {
+        "lundi": { "type": "object", "$ref": "#/entities/DayHours" },
+        "mardi": { "type": "object", "$ref": "#/entities/DayHours" },
+        "mercredi": { "type": "object", "$ref": "#/entities/DayHours" },
+        "jeudi": { "type": "object", "$ref": "#/entities/DayHours" },
+        "vendredi": { "type": "object", "$ref": "#/entities/DayHours" },
+        "samedi": { "type": "object", "$ref": "#/entities/DayHours" },
+        "dimanche": { "type": "object", "$ref": "#/entities/DayHours" }
+      },
+      "required": ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+    },
+    "Salon": {
+      "title": "Salon",
+      "description": "Profil privé du salon géré par un compte utilisateur unique",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "slug": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "^[a-z0-9\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "neighborhood": { "type": "string", "minLength": 1, "maxLength": 150 },
+        "phone": { "type": "string", "minLength": 1, "maxLength": 30 },
+        "openingHours": { "type": "object", "$ref": "#/entities/OpeningHoursMap" },
+        "onboardingCompleted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "slug", "name", "neighborhood", "phone", "openingHours", "onboardingCompleted", "createdAt", "updatedAt"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Prestation proposée par le salon (durée et tarif en FCFA)",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "durationMinutes": { "type": "integer" },
+        "priceFcfa": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "durationMinutes", "priceFcfa", "createdAt", "updatedAt"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Fiche client privée du salon",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "phone", "notes", "createdAt", "updatedAt"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Rendez-vous planifié ou confirmé au salon",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "clientName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "clientPhone": { "type": "string", "maxLength": 30 },
+        "serviceId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "serviceName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "durationMinutes": { "type": "integer" },
+        "priceFcfa": { "type": "integer" },
+        "date": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "time": { "type": "string", "minLength": 5, "maxLength": 5, "pattern": "^\\d{2}:\\d{2}$" },
+        "status": { "type": "string", "enum": ["planifie", "confirme", "termine", "annule"] },
+        "paymentMethod": { "type": "string", "enum": ["", "especes", "mtn_momo", "airtel_money", "carte", "autre"] },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "clientId", "clientName", "clientPhone", "serviceId", "serviceName", "durationMinutes", "priceFcfa", "date", "time", "status", "paymentMethod", "notes", "createdAt", "updatedAt"]
+    },
+    "PublicSalon": {
+      "title": "PublicSalon",
+      "description": "Vitrine publique sans aucune donnée personnelle (nom du salon et horaires uniquement)",
+      "type": "object",
+      "properties": {
+        "salonId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "slug": { "type": "string", "minLength": 1, "maxLength": 120, "pattern": "^[a-z0-9\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "openingHours": { "type": "object", "$ref": "#/entities/OpeningHoursMap" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["salonId", "slug", "name", "openingHours", "updatedAt"]
+    },
+    "PublicService": {
+      "title": "PublicService",
+      "description": "Prestation publique (nom, durée, tarif FCFA)",
+      "type": "object",
+      "properties": {
+        "salonId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "durationMinutes": { "type": "integer" },
+        "priceFcfa": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["salonId", "name", "durationMinutes", "priceFcfa", "updatedAt"]
+    },
+    "TakenSlot": {
+      "title": "TakenSlot",
+      "description": "Créneau occupé sans aucune donnée client (date, heure et durée uniquement)",
+      "type": "object",
+      "properties": {
+        "salonId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "date": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "startTime": { "type": "string", "minLength": 5, "maxLength": 5, "pattern": "^\\d{2}:\\d{2}$" },
+        "durationMinutes": { "type": "integer" },
+        "appointmentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["salonId", "date", "startTime", "durationMinutes", "appointmentId", "createdAt"]
+    },
+    "SlotLock": {
+      "title": "SlotLock",
+      "description": "Verrou atomique anti double-réservation par tranche horaire",
+      "type": "object",
+      "properties": {
+        "salonId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "date": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "appointmentId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["salonId", "date", "appointmentId", "createdAt"]
+    },
+    "PhoneIndex": {
+      "title": "PhoneIndex",
+      "description": "Index anonymisé par empreinte SHA-256 pour rattacher un numéro existant sans exposer de PII",
+      "type": "object",
+      "properties": {
+        "salonId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "clientId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["salonId", "clientId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/salons/{salonId}": {
+      "schema": { "$ref": "#/entities/Salon" },
+      "description": "Salon unique appartenant à l'utilisateur (salonId == uid)"
+    },
+    "/salons/{salonId}/services/{serviceId}": {
+      "schema": { "$ref": "#/entities/Service" },
+      "description": "Prestations proposées par le salon"
+    },
+    "/salons/{salonId}/clients/{clientId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Répertoire privé des clients du salon"
+    },
+    "/salons/{salonId}/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/Appointment" },
+      "description": "Rendez-vous du salon"
+    },
+    "/publicSalons/{slug}": {
+      "schema": { "$ref": "#/entities/PublicSalon" },
+      "description": "Page publique du salon (nom et horaires uniquement)"
+    },
+    "/publicSalons/{slug}/services/{serviceId}": {
+      "schema": { "$ref": "#/entities/PublicService" },
+      "description": "Prestations publiques du salon"
+    },
+    "/publicSalons/{slug}/takenSlots/{slotId}": {
+      "schema": { "$ref": "#/entities/TakenSlot" },
+      "description": "Créneaux occupés visibles publiquement sans aucune PII"
+    },
+    "/publicSalons/{slug}/slotLocks/{lockId}": {
+      "schema": { "$ref": "#/entities/SlotLock" },
+      "description": "Verrous anti double-réservation"
+    },
+    "/publicSalons/{slug}/phoneIndex/{phoneHash}": {
+      "schema": { "$ref": "#/entities/PhoneIndex" },
+      "description": "Correspondance empreinte téléphone -> clientId"
+    }
+  }
+}

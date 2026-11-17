@@ -1,0 +1,497 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Reusable Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidSlug(slug) {
+      return slug is string && slug.size() >= 1 && slug.size() <= 120 && slug.matches('^[a-z0-9\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwner(salonId) {
+      return isSignedIn() && request.auth.uid == salonId;
+    }
+
+    function isValidDayHours(dayObj) {
+      return dayObj is map
+        && dayObj.keys().hasAll(['open', 'start', 'end'])
+        && dayObj.keys().hasOnly(['open', 'start', 'end'])
+        && dayObj.open is bool
+        && dayObj.start is string
+        && dayObj.start.size() == 5
+        && dayObj.start.matches('^\\d{2}:\\d{2}$')
+        && dayObj.end is string
+        && dayObj.end.size() == 5
+        && dayObj.end.matches('^\\d{2}:\\d{2}$');
+    }
+
+    function isValidOpeningHours(hours) {
+      return hours is map
+        && hours.keys().hasAll(['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'])
+        && hours.keys().hasOnly(['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'])
+        && isValidDayHours(hours.lundi)
+        && isValidDayHours(hours.mardi)
+        && isValidDayHours(hours.mercredi)
+        && isValidDayHours(hours.jeudi)
+        && isValidDayHours(hours.vendredi)
+        && isValidDayHours(hours.samedi)
+        && isValidDayHours(hours.dimanche);
+    }
+
+    function isValidSalon(data, salonId) {
+      return data.keys().hasAll(['ownerId', 'slug', 'name', 'neighborhood', 'phone', 'openingHours', 'onboardingCompleted', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'slug', 'name', 'neighborhood', 'phone', 'openingHours', 'onboardingCompleted', 'createdAt', 'updatedAt'])
+        && data.ownerId is string
+        && data.ownerId == request.auth.uid
+        && data.ownerId == salonId
+        && isValidSlug(data.slug)
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 100
+        && data.neighborhood is string
+        && data.neighborhood.size() >= 1
+        && data.neighborhood.size() <= 150
+        && data.phone is string
+        && data.phone.size() >= 1
+        && data.phone.size() <= 30
+        && isValidOpeningHours(data.openingHours)
+        && data.onboardingCompleted is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidService(data, salonId) {
+      return data.keys().hasAll(['ownerId', 'name', 'durationMinutes', 'priceFcfa', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'name', 'durationMinutes', 'priceFcfa', 'createdAt', 'updatedAt'])
+        && data.ownerId is string
+        && data.ownerId == request.auth.uid
+        && data.ownerId == salonId
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 80
+        && data.durationMinutes is int
+        && data.durationMinutes >= 5
+        && data.durationMinutes <= 480
+        && data.priceFcfa is int
+        && data.priceFcfa >= 0
+        && data.priceFcfa <= 10000000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidClient(data, salonId) {
+      return data.keys().hasAll(['ownerId', 'name', 'phone', 'notes', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'name', 'phone', 'notes', 'createdAt', 'updatedAt'])
+        && data.ownerId is string
+        && data.ownerId == salonId
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 100
+        && data.phone is string
+        && data.phone.size() <= 30
+        && data.notes is string
+        && data.notes.size() <= 500
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAppointment(data, salonId) {
+      return data.keys().hasAll(['ownerId', 'clientId', 'clientName', 'clientPhone', 'serviceId', 'serviceName', 'durationMinutes', 'priceFcfa', 'date', 'time', 'status', 'paymentMethod', 'notes', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['ownerId', 'clientId', 'clientName', 'clientPhone', 'serviceId', 'serviceName', 'durationMinutes', 'priceFcfa', 'date', 'time', 'status', 'paymentMethod', 'notes', 'createdAt', 'updatedAt'])
+        && data.ownerId is string
+        && data.ownerId == salonId
+        && isValidId(data.clientId)
+        && data.clientName is string
+        && data.clientName.size() >= 1
+        && data.clientName.size() <= 100
+        && data.clientPhone is string
+        && data.clientPhone.size() <= 30
+        && isValidId(data.serviceId)
+        && data.serviceName is string
+        && data.serviceName.size() >= 1
+        && data.serviceName.size() <= 80
+        && data.durationMinutes is int
+        && data.durationMinutes >= 5
+        && data.durationMinutes <= 480
+        && data.priceFcfa is int
+        && data.priceFcfa >= 0
+        && data.priceFcfa <= 10000000
+        && data.date is string
+        && data.date.size() == 10
+        && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.time is string
+        && data.time.size() == 5
+        && data.time.matches('^\\d{2}:\\d{2}$')
+        && data.status is string
+        && data.status in ['planifie', 'confirme', 'termine', 'annule']
+        && data.paymentMethod is string
+        && data.paymentMethod in ['', 'especes', 'mtn_momo', 'airtel_money', 'carte', 'autre']
+        && data.notes is string
+        && data.notes.size() <= 500
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPublicSalon(data, slug) {
+      return data.keys().hasAll(['salonId', 'slug', 'name', 'openingHours', 'updatedAt'])
+        && data.keys().hasOnly(['salonId', 'slug', 'name', 'openingHours', 'updatedAt'])
+        && isValidId(data.salonId)
+        && isValidSlug(data.slug)
+        && data.slug == slug
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 100
+        && isValidOpeningHours(data.openingHours)
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPublicService(data, salonId) {
+      return data.keys().hasAll(['salonId', 'name', 'durationMinutes', 'priceFcfa', 'updatedAt'])
+        && data.keys().hasOnly(['salonId', 'name', 'durationMinutes', 'priceFcfa', 'updatedAt'])
+        && isValidId(data.salonId)
+        && data.salonId == salonId
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 80
+        && data.durationMinutes is int
+        && data.durationMinutes >= 5
+        && data.durationMinutes <= 480
+        && data.priceFcfa is int
+        && data.priceFcfa >= 0
+        && data.priceFcfa <= 10000000
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTakenSlot(data) {
+      return data.keys().hasAll(['salonId', 'date', 'startTime', 'durationMinutes', 'appointmentId', 'createdAt'])
+        && data.keys().hasOnly(['salonId', 'date', 'startTime', 'durationMinutes', 'appointmentId', 'createdAt'])
+        && isValidId(data.salonId)
+        && data.date is string
+        && data.date.size() == 10
+        && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && data.startTime is string
+        && data.startTime.size() == 5
+        && data.startTime.matches('^\\d{2}:\\d{2}$')
+        && data.durationMinutes is int
+        && data.durationMinutes >= 5
+        && data.durationMinutes <= 480
+        && isValidId(data.appointmentId)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidSlotLock(data) {
+      return data.keys().hasAll(['salonId', 'date', 'appointmentId', 'createdAt'])
+        && data.keys().hasOnly(['salonId', 'date', 'appointmentId', 'createdAt'])
+        && isValidId(data.salonId)
+        && data.date is string
+        && data.date.size() == 10
+        && data.date.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && isValidId(data.appointmentId)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidPhoneIndex(data) {
+      return data.keys().hasAll(['salonId', 'clientId', 'createdAt'])
+        && data.keys().hasOnly(['salonId', 'clientId', 'createdAt'])
+        && isValidId(data.salonId)
+        && isValidId(data.clientId)
+        && data.createdAt is timestamp;
+    }
+
+    // Private Salons Collection (1 account = 1 salon, salonId == uid)
+    match /salons/{salonId} {
+      allow get: if isOwner(salonId) && isValidId(salonId);
+      allow list: if false;
+      allow create: if isOwner(salonId)
+        && isValidId(salonId)
+        && isValidSalon(incoming(), salonId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isOwner(salonId)
+        && isValidId(salonId)
+        && isValidSalon(incoming(), salonId)
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'slug', 'neighborhood', 'phone', 'openingHours', 'onboardingCompleted', 'updatedAt']);
+      allow delete: if isOwner(salonId) && isValidId(salonId);
+
+      // Private Services Subcollection
+      match /services/{serviceId} {
+        allow get: if isOwner(salonId)
+          && isValidId(salonId)
+          && isValidId(serviceId)
+          && exists(/databases/$(database)/documents/salons/$(salonId));
+        allow list: if isOwner(salonId)
+          && existing().ownerId == request.auth.uid;
+        allow create: if isOwner(salonId)
+          && isValidId(salonId)
+          && isValidId(serviceId)
+          && isValidService(incoming(), salonId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && existsAfter(/databases/$(database)/documents/salons/$(salonId));
+        allow update: if isOwner(salonId)
+          && isValidId(salonId)
+          && isValidId(serviceId)
+          && isValidService(incoming(), salonId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'durationMinutes', 'priceFcfa', 'updatedAt'])
+          && exists(/databases/$(database)/documents/salons/$(salonId));
+        allow delete: if isOwner(salonId)
+          && isValidId(salonId)
+          && isValidId(serviceId)
+          && exists(/databases/$(database)/documents/salons/$(salonId));
+      }
+
+      // Private Clients Subcollection (public visitors can NEVER read, edit, or delete)
+      match /clients/{clientId} {
+        allow get: if isOwner(salonId)
+          && isValidId(salonId)
+          && isValidId(clientId)
+          && exists(/databases/$(database)/documents/salons/$(salonId));
+        allow list: if isOwner(salonId)
+          && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(salonId)
+          && isValidId(clientId)
+          && isValidClient(incoming(), salonId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/salons/$(salonId))
+          && (
+            isOwner(salonId)
+            || (
+              incoming().phone.size() >= 6
+              && incoming().notes == 'Réservation en ligne'
+            )
+          );
+        allow update: if isOwner(salonId)
+          && isValidId(salonId)
+          && isValidId(clientId)
+          && isValidClient(incoming(), salonId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'notes', 'updatedAt'])
+          && exists(/databases/$(database)/documents/salons/$(salonId));
+        allow delete: if isOwner(salonId)
+          && isValidId(salonId)
+          && isValidId(clientId)
+          && exists(/databases/$(database)/documents/salons/$(salonId));
+      }
+
+      // Private Appointments Subcollection (public visitors can ONLY create confirmed appointments atomically)
+      match /appointments/{appointmentId} {
+        allow get: if isOwner(salonId)
+          && isValidId(salonId)
+          && isValidId(appointmentId)
+          && exists(/databases/$(database)/documents/salons/$(salonId));
+        allow list: if isOwner(salonId)
+          && existing().ownerId == request.auth.uid;
+        allow create: if isValidId(salonId)
+          && isValidId(appointmentId)
+          && isValidAppointment(incoming(), salonId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && (
+            (
+              isOwner(salonId)
+              && incoming().status in ['planifie', 'confirme']
+              && exists(/databases/$(database)/documents/salons/$(salonId))
+              && exists(/databases/$(database)/documents/salons/$(salonId)/clients/$(incoming().clientId))
+              && exists(/databases/$(database)/documents/salons/$(salonId)/services/$(incoming().serviceId))
+            ) || (
+              incoming().status == 'confirme'
+              && incoming().paymentMethod == ''
+              && incoming().clientPhone.size() >= 6
+              && get(/databases/$(database)/documents/salons/$(salonId)/services/$(incoming().serviceId)).data.priceFcfa == incoming().priceFcfa
+              && get(/databases/$(database)/documents/salons/$(salonId)/services/$(incoming().serviceId)).data.durationMinutes == incoming().durationMinutes
+              && get(/databases/$(database)/documents/salons/$(salonId)/services/$(incoming().serviceId)).data.name == incoming().serviceName
+              && (
+                exists(/databases/$(database)/documents/salons/$(salonId)/clients/$(incoming().clientId))
+                || existsAfter(/databases/$(database)/documents/salons/$(salonId)/clients/$(incoming().clientId))
+              )
+              && existsAfter(/databases/$(database)/documents/publicSalons/$(get(/databases/$(database)/documents/salons/$(salonId)).data.slug)/takenSlots/$(appointmentId))
+            )
+          );
+        allow update: if isOwner(salonId)
+          && isValidId(salonId)
+          && isValidId(appointmentId)
+          && isValidAppointment(incoming(), salonId)
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/salons/$(salonId))
+          && (
+            (
+              existing().status in ['planifie', 'confirme']
+              && incoming().status in ['termine', 'annule']
+              && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentMethod', 'priceFcfa', 'updatedAt'])
+            ) || (
+              existing().status in ['planifie', 'confirme']
+              && incoming().status in ['planifie', 'confirme']
+              && incoming().diff(existing()).affectedKeys().hasOnly(['clientId', 'clientName', 'clientPhone', 'serviceId', 'serviceName', 'durationMinutes', 'priceFcfa', 'date', 'time', 'paymentMethod', 'notes', 'updatedAt'])
+              && (
+                incoming().clientId == existing().clientId
+                || exists(/databases/$(database)/documents/salons/$(salonId)/clients/$(incoming().clientId))
+              )
+              && (
+                incoming().serviceId == existing().serviceId
+                || exists(/databases/$(database)/documents/salons/$(salonId)/services/$(incoming().serviceId))
+              )
+            ) || (
+              existing().status == 'termine'
+              && incoming().status == 'termine'
+              && incoming().diff(existing()).affectedKeys().hasOnly(['paymentMethod', 'priceFcfa', 'updatedAt'])
+            )
+          );
+        allow delete: if isOwner(salonId)
+          && isValidId(salonId)
+          && isValidId(appointmentId)
+          && exists(/databases/$(database)/documents/salons/$(salonId));
+      }
+    }
+
+    // Public Salon Storefront (name + openingHours ONLY, zero PII)
+    match /publicSalons/{slug} {
+      allow get: if isValidSlug(slug);
+      allow list: if false;
+      allow create: if isSignedIn()
+        && isValidSlug(slug)
+        && isValidPublicSalon(incoming(), slug)
+        && incoming().salonId == request.auth.uid
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidSlug(slug)
+        && isValidPublicSalon(incoming(), slug)
+        && existing().salonId == request.auth.uid
+        && incoming().salonId == existing().salonId
+        && incoming().slug == existing().slug
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'openingHours', 'updatedAt']);
+      allow delete: if isSignedIn()
+        && isValidSlug(slug)
+        && existing().salonId == request.auth.uid;
+
+      // Public Services (name, durationMinutes, priceFcfa ONLY)
+      match /services/{serviceId} {
+        allow get: if isValidSlug(slug)
+          && isValidId(serviceId)
+          && exists(/databases/$(database)/documents/publicSalons/$(slug));
+        allow list: if isValidSlug(slug)
+          && existing().salonId is string;
+        allow create: if isSignedIn()
+          && isValidSlug(slug)
+          && isValidId(serviceId)
+          && isValidPublicService(incoming(), request.auth.uid)
+          && incoming().updatedAt == request.time
+          && getAfter(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == request.auth.uid;
+        allow update: if isSignedIn()
+          && isValidSlug(slug)
+          && isValidId(serviceId)
+          && isValidPublicService(incoming(), request.auth.uid)
+          && incoming().salonId == existing().salonId
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'durationMinutes', 'priceFcfa', 'updatedAt'])
+          && get(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == request.auth.uid;
+        allow delete: if isSignedIn()
+          && isValidSlug(slug)
+          && isValidId(serviceId)
+          && get(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == request.auth.uid;
+      }
+
+      // Public Taken Time Slots (date, startTime, durationMinutes ONLY — zero PII)
+      match /takenSlots/{slotId} {
+        allow get: if isValidSlug(slug)
+          && isValidId(slotId)
+          && exists(/databases/$(database)/documents/publicSalons/$(slug));
+        allow list: if isValidSlug(slug)
+          && existing().date is string;
+        allow create: if isValidSlug(slug)
+          && isValidId(slotId)
+          && isValidTakenSlot(incoming())
+          && incoming().createdAt == request.time
+          && get(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == incoming().salonId
+          && existsAfter(/databases/$(database)/documents/salons/$(incoming().salonId)/appointments/$(incoming().appointmentId));
+        allow update: if isSignedIn()
+          && isValidSlug(slug)
+          && isValidId(slotId)
+          && isValidTakenSlot(incoming())
+          && incoming().salonId == request.auth.uid
+          && incoming().createdAt == request.time
+          && get(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == request.auth.uid;
+        allow delete: if isSignedIn()
+          && isValidSlug(slug)
+          && isValidId(slotId)
+          && get(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == request.auth.uid;
+      }
+
+      // Atomic Double-Booking Slot Locks (create-only for public, owner can upsert/delete)
+      match /slotLocks/{lockId} {
+        allow get: if false;
+        allow list: if false;
+        allow create: if isValidSlug(slug)
+          && isValidId(lockId)
+          && isValidSlotLock(incoming())
+          && incoming().createdAt == request.time
+          && existsAfter(/databases/$(database)/documents/salons/$(incoming().salonId)/appointments/$(incoming().appointmentId));
+        allow update: if isSignedIn()
+          && isValidSlug(slug)
+          && isValidId(lockId)
+          && isValidSlotLock(incoming())
+          && incoming().salonId == request.auth.uid
+          && incoming().createdAt == request.time
+          && get(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == request.auth.uid;
+        allow delete: if isSignedIn()
+          && isValidSlug(slug)
+          && isValidId(lockId)
+          && get(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == request.auth.uid;
+      }
+
+      // Blinded Phone Index (SHA-256 hash -> opaque clientId ONLY, zero PII, no list)
+      match /phoneIndex/{phoneHash} {
+        allow get: if isValidSlug(slug)
+          && isValidId(phoneHash)
+          && exists(/databases/$(database)/documents/publicSalons/$(slug));
+        allow list: if false;
+        allow create: if isValidSlug(slug)
+          && isValidId(phoneHash)
+          && isValidPhoneIndex(incoming())
+          && incoming().createdAt == request.time
+          && get(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == incoming().salonId;
+        allow update: if isSignedIn()
+          && isValidSlug(slug)
+          && isValidId(phoneHash)
+          && isValidPhoneIndex(incoming())
+          && incoming().salonId == request.auth.uid
+          && incoming().createdAt == request.time
+          && get(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == request.auth.uid;
+        allow delete: if isSignedIn()
+          && isValidSlug(slug)
+          && isValidId(phoneHash)
+          && get(/databases/$(database)/documents/publicSalons/$(slug)).data.salonId == request.auth.uid;
+      }
+    }
+  }
+}
